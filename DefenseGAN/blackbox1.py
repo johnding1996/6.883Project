@@ -1,3 +1,4 @@
+
 # Copyright 2018 The Defense-GAN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +26,6 @@ import argparse
 import cPickle
 import logging
 import os
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import re
 import sys
 
@@ -147,7 +146,6 @@ def train_sub(sess, x, y, bbox_preds, X_sub, Y_sub, nb_classes,
               rng, substitute_model=None):
     """This function trains the substitute model as described in
         arxiv.org/abs/1602.02697
-
     Args:
         sess: TF session
         x: input TF placeholder
@@ -226,14 +224,12 @@ def convert_to_onehot(ys):
 
 def get_celeba(data_path, test_on_dev=True, orig_data=False):
     """Generates the CelebA dataset from Pickle files.
-
     Args:
         data_path: The path to where pickles are saved.
             <model-path>/<split>/pickles/
         test_on_dev: Test on the development set.
         orig_data: Original data flag. `True` for returning the original
             dataset.
-
     Returns:
         images: Images of the dataset.
         labels: Labels of the loaded images.
@@ -274,7 +270,6 @@ def get_celeba(data_path, test_on_dev=True, orig_data=False):
 def get_train_test(data_path, test_on_dev=True, model=None,
                    orig_data=False, max_num=-1):
     """Loads the datasets.
-
     Args:
         data_path: The path that contains train,dev,[test] directories
         test_on_dev: Test on the development set
@@ -297,11 +292,14 @@ def get_train_test(data_path, test_on_dev=True, model=None,
         data_path = os.path.join(data_path, split, 'feats.pkl')
         could_load = False
         try:
+            print(data_path)
             if os.path.exists(data_path):
+                print('loaded')
                 with open(data_path) as f:
                     train_images_gan = cPickle.load(f)
                     train_labels_gan = cPickle.load(f)
                 could_load = True
+                
             else:
                 print(
                     '[!] Run python train.py --cfg <path-to-cfg> --save_ds '
@@ -339,7 +337,6 @@ def get_cached_gan_data(gan, test_on_dev, orig_data_flag=None):
         test_on_dev: `True` for loading the dev set instead of the test set.
         orig_data_flag: `True` for loading the original images not the 
             reconstructions.
-
     Returns:
         train_images: Training images.
         train_labels: Training labels.
@@ -419,9 +416,6 @@ def blackbox(gan, rec_data_path=None, batch_size=128,
 
     train_images, train_labels, test_images, test_labels = \
         get_cached_gan_data(gan, test_on_dev, orig_data_flag=True)
-    
-    print("shape",train_images.shape)
-    
 
     x_shape, classes = list(train_images.shape[1:]), train_labels.shape[1]
     nb_classes = classes
@@ -441,11 +435,8 @@ def blackbox(gan, rec_data_path=None, batch_size=128,
     if FLAGS.debug:
         train_images = train_images[:20 * batch_size]
         train_labels = train_labels[:20 * batch_size]
-        
-        #debug_dir = os.path.join('debug', 'blackbox', FLAGS.debug_dir)
-        print(FLAGS.debug_dir)
-        debug_dir = 'debug/blackbox'
-        #ensure_dir(debug_dir)
+        debug_dir = os.path.join('debug', 'blackbox', FLAGS.debug_dir)
+        ensure_dir(debug_dir)
         x_debug_test = test_images[:batch_size]
 
     # Initialize substitute training set reserved for adversary
@@ -475,8 +466,6 @@ def blackbox(gan, rec_data_path=None, batch_size=128,
     train_images_bb, train_labels_bb, test_images_bb, test_labels_bb = \
         train_images, train_labels, test_images, \
         test_labels
-    
-    print("shape of train and test",train_images_bb.shape,test_images_bb.shape)
 
     cur_gan = None
 
@@ -542,71 +531,23 @@ def blackbox(gan, rec_data_path=None, batch_size=128,
     # Craft adversarial examples using the substitute.
     eval_params = {'batch_size': batch_size}
     x_adv_sub = fgsm.generate(images_tensor, **fgsm_par)
-    
 
     if FLAGS.debug and gan is not None:  # To see some qualitative results.
-        batch_size = 500
-        print("elimination")
-        x_rec_orig = gan.reconstruct(images_tensor, batch_size=batch_size,reconstructor_id=4)
-        for i in [4]:
-            WB_B_t_adv = np.load('../AdvGAN/samples/WB-B-t'+str(i)+'-adv.npy')
-            length = WB_B_t_adv.shape[0]
-            print(i)
-            for j in range(length // batch_size):
-            
-                sess.run(tf.local_variables_initializer())
-                x_rec_orig_val_ = sess.run(
-                    x_rec_orig,
-                    feed_dict={
-                        images_tensor: WB_B_t_adv[j*batch_size:j*batch_size+batch_size],
-                        K.learning_phase(): 0})
-                if j==0:
-                    x_rec_orig_val=x_rec_orig_val_[:]
-                else:
-                    x_rec_orig_val = np.concatenate((x_rec_orig_val,x_rec_orig_val_),axis=0)
-                print("shape:",x_rec_orig_val.shape)
-                
-            np.savez_compressed('results/reconstruct/WB-B-t'+str(i)+'-adv-defensegan-'+str(length), x_rec_orig_val)
-            #np.savez_compressed('test1.npy', x_rec_orig_val)
-        #i = 1
-        #WB_B_t_adv = np.load('../AdvGAN/samples/WB-B-t'+str(i)+'-adv.npy')
-        print("saved")
-        
-        
-        
-        #reconstructed_tensors = gan.reconstruct(x_adv_sub, batch_size=batch_size,                          reconstructor_id=2)
-        #x_adv_sub_val = sess.run(x_adv_sub,feed_dict={images_tensor: x_debug_test,K.learning_phase(): 0})
-        #x_rec_debug_val = sess.run(reconstructed_tensors,feed_dict={images_tensor: x_debug_test, K.learning_phase(): 0})
-        #print("shape",x_rec_debug_val.shape)
-        #print("shape",x_adv_sub_val.shape)
-        #np.savez_compressed('test1.npy', x_adv_sub_val)
-        #np.savez_compressed('test2.npy', x_rec_debug_val)
-        return
-        
-    
-    if FLAGS.debug and gan is not None:  # To see some qualitative results.
-        
         reconstructed_tensors = gan.reconstruct(x_adv_sub, batch_size=batch_size,
                                                 reconstructor_id=2)
+
         x_rec_orig = gan.reconstruct(images_tensor, batch_size=batch_size,
                                      reconstructor_id=3)
         x_adv_sub_val = sess.run(x_adv_sub,
                                  feed_dict={images_tensor: x_debug_test,
                                             K.learning_phase(): 0})
         sess.run(tf.local_variables_initializer())
-        
-        
-        
-        
         x_rec_debug_val, x_rec_orig_val = sess.run(
             [reconstructed_tensors, x_rec_orig],
             feed_dict={
                 images_tensor: x_debug_test,
                 K.learning_phase(): 0})
-       
-        #print("shape",x_adv_sub_val.shape)
-        np.savez_compressed('test1.npy', x_adv_sub_val)
-        print("shape",x_rec_debug_val.shape,x_rec_orig_val.shape)
+
         save_images_files(x_adv_sub_val, output_dir=debug_dir,
                           postfix='adv')
 
