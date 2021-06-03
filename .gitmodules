@@ -1,3 +1,0 @@
-[submodule "DefenseGAN/cleverhans"]
-	path = DefenseGAN/cleverhans
-	url = https://github.com/tensorflow/cleverhans.git
